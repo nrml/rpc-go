@@ -10,6 +10,7 @@ import (
 
 type server struct {
 	cn net.Conn
+	ln net.Listener
 }
 
 func NewServer(name string, svc interface{}, port int64) (server, error) {
@@ -25,25 +26,25 @@ func NewServer(name string, svc interface{}, port int64) (server, error) {
 func (svr *server) init(svc *service, port int64) error {
 	endpoint := fmt.Sprintf("%sRpc", svc.Name)
 	rpc.RegisterName(endpoint, svc)
-	svr.listen(port)
-	return nil
+	return svr.listen(port)
 }
 func (svr *server) listen(port int64) error {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
+	svr.ln = l
 
-	for {
-		conn, _ := l.Accept()
-
-		svr.cn = conn
-		log.Println("using custom codec for server")
-		rpcCodec := msgpack.NewCustomRPCServerCodec(conn, nil)
-		rpc.ServeCodec(rpcCodec)
-
-	}
 	return err
+}
+func (svr *server) Accept() {
+	conn, _ := svr.ln.Accept()
+
+	svr.cn = conn
+	log.Println("using custom codec for server")
+	rpcCodec := msgpack.NewCustomRPCServerCodec(conn, nil)
+	go rpc.ServeCodec(rpcCodec)
 }
 func (svr *server) Stop() {
 	defer svr.cn.Close()
