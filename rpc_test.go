@@ -3,6 +3,7 @@ package rpc
 import (
 	"fmt"
 	"log"
+	//"net/rpc"
 	"testing"
 )
 
@@ -80,5 +81,16 @@ func Test_Server(t *testing.T) {
 	}
 
 	log.Printf("results of search: %v\n", results)
+
+	asyncresults := new([]Registration)
+	response := client.Async("Search", "email='dummy9001'", asyncresults)
+
+	cb := <-response.Done
+
+	if cb.Error != nil {
+		log.Println("ERROR: " + cb.Error.Error())
+	}
+
+	log.Printf("results of async search: %v\n", asyncresults)
 
 }

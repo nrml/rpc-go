@@ -53,6 +53,16 @@ func (c *client) Call(method string, args ...interface{}) error {
 	err = c.rpc.Call(ep, msg, reply)
 	return err
 }
+
+func (c *client) Async(method string, args ...interface{}) *rpc.Call {
+	ep := c.endpoint()
+	l := len(args)
+	reqargs := args[0 : l-1]
+	reply := args[l-1:][0]
+	msg := Message{c.key, c.namespace, method, reqargs}
+
+	return c.rpc.Go(ep, msg, reply, nil)
+}
 func (c *client) endpoint() string {
 	return fmt.Sprintf("%sRpc.Call", c.service)
 }

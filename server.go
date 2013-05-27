@@ -25,7 +25,8 @@ func NewServer(name string, svc interface{}, port int64) (server, error) {
 func (svr *server) init(svc *service, port int64) error {
 	endpoint := fmt.Sprintf("%sRpc", svc.Name)
 	rpc.RegisterName(endpoint, svc)
-	return svr.listen(port)
+	svr.listen(port)
+	return nil
 }
 func (svr *server) listen(port int64) error {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -35,10 +36,12 @@ func (svr *server) listen(port int64) error {
 
 	for {
 		conn, _ := l.Accept()
+
 		svr.cn = conn
 		log.Println("using custom codec for server")
 		rpcCodec := msgpack.NewCustomRPCServerCodec(conn, nil)
 		rpc.ServeCodec(rpcCodec)
+
 	}
 	return err
 }
