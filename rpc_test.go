@@ -28,69 +28,67 @@ func Test_Server(t *testing.T) {
 		log.Fatal("dialing:", err)
 	}
 
-	create := Registration{0, "dummy9001", "dummyPass"}
+	send := Registration{0, "dummy9001", "dummyPass"}
 
 	reg := new(Registration)
 
 	// Synchronous call
-	err = client.Call("Create", create, reg)
+	async := client.Async("Create", send, reg)
 
-	if err != nil {
-		log.Println(err.Error())
+	cb := <-async.Done
+
+	if cb.Error != nil {
+		log.Println(cb.Error.Error())
 		return
 	}
 
 	log.Printf("created reg: %d %s %s\n", reg.ID, reg.Email, reg.Password)
 
-	get := new(Registration)
-	err = client.Call("Get", reg.ID, get)
+	id := reg.ID
+	reg = new(Registration)
+	async = client.Async("Get", id, reg)
 
-	if err != nil {
-		log.Println(err.Error())
+	cb = <-async.Done
+
+	if cb.Error != nil {
+		log.Println(cb.Error.Error())
 		return
 	}
 
-	log.Printf("got reg: %d %s %s\n", get.ID, get.Email, get.Password)
+	log.Printf("got reg: %d %s %s\n", reg.ID, reg.Email, reg.Password)
 
-	login := new(Registration)
-	logreq := Registration{}
-	logreq.Email = reg.Email
-	logreq.Password = "dummyPass"
-	err = client.Call("Login", logreq, login)
+	reg = new(Registration)
 
-	if err != nil {
-		log.Println("ERROR: " + err.Error())
-	}
+	async = client.Async("Login", send, reg)
 
-	log.Printf("logged in reg: %d %s %s\n", login.ID, login.Email, login.Password)
-
-	regs := new([]Registration)
-	err = client.Call("List", regs)
-
-	if err != nil {
-		log.Println("ERROR: " + err.Error())
-	}
-
-	log.Printf("list of reges: %v\n\n\n\n\n\n", regs)
-
-	results := new([]Registration)
-	err = client.Call("Search", "email='dummy9001'", results)
-
-	if err != nil {
-		log.Println("ERROR: " + err.Error())
-	}
-
-	log.Printf("results of search: %v\n", results)
-
-	asyncresults := new([]Registration)
-	response := client.Async("Search", "email='dummy9001'", asyncresults)
-
-	cb := <-response.Done
+	cb = <-async.Done
 
 	if cb.Error != nil {
 		log.Println("ERROR: " + cb.Error.Error())
 	}
 
-	log.Printf("results of async search: %v\n", asyncresults)
+	log.Printf("logged in reg: %d %s %s\n", reg.ID, reg.Email, reg.Password)
+
+	list := new([]Registration)
+	async = client.Async("List", list)
+
+	cb = <-async.Done
+
+	if cb.Error != nil {
+		log.Println("ERROR: " + cb.Error.Error())
+	}
+
+	log.Printf("list of reges: %v\n\n\n\n\n\n", list)
+
+	list = new([]Registration)
+	async = client.Async("Search", "email='dummy9001'", list)
+
+	cb = <-async.Done
+
+	if cb.Error != nil {
+		log.Println("ERROR: " + cb.Error.Error())
+	}
+
+	log.Printf("results of search: %v\n", list)
 
 }
