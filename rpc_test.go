@@ -63,4 +63,13 @@ func Test_Server(t *testing.T) {
 
 	log.Printf("logged in reg: %d %s %s\n", login.ID, login.Email, login.Password)
 
+	regs := new([]Registration)
+	err = client.Call("List", regs)
+
+	if err != nil {
+		log.Println("ERROR: " + err.Error())
+	}
+
+	log.Printf("list of reges: %v\n", regs)
+
 }

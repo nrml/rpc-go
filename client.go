@@ -42,14 +42,17 @@ func (c *client) Connect(host string, port int64) error {
 	return err
 }
 
-//last agrument is the reply pointer, all others sent with the request
+//last agrument is the reply that is a zeroed T value pointer (new), all others sent with the request
 func (c *client) Call(method string, args ...interface{}) error {
-	endpoint := fmt.Sprintf("%sRpc.Call", c.service)
+	ep := c.endpoint()
 	l := len(args)
 	reqargs := args[0 : l-1]
 	reply := args[l-1:][0]
 	msg := Message{c.key, c.namespace, method, reqargs}
-	err := c.rpc.Call(endpoint, msg, &reply)
-
+	var err error
+	err = c.rpc.Call(ep, msg, reply)
 	return err
+}
+func (c *client) endpoint() string {
+	return fmt.Sprintf("%sRpc.Call", c.service)
 }
