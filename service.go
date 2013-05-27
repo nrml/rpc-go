@@ -67,10 +67,10 @@ func (svc *service) Call(msg Message, reply *interface{}) error {
 	for i := 0; i < len(msg.Args); i++ {
 		arg := msg.Args[i]
 		argtype := mtype.In(i)
-		log.Printf("type: %v", argtype)
+		//log.Printf("type: %v", argtype)
 		cp := reflect.New(argtype)
 		k := reflect.ValueOf(arg).Kind().String()
-		log.Printf("kind: %v\n", k)
+		//log.Printf("kind: %v\n", k)
 		switch k {
 		case "map":
 			log.Println("convert map")
@@ -93,10 +93,10 @@ func (svc *service) Call(msg Message, reply *interface{}) error {
 	//log.Printf("about to to call the function(%v) with converted args: %v\n", msg.Method, len(args))
 	resp := m.Call(args)
 
-	log.Printf("made call, got response: %v", resp)
+	//log.Printf("made call, got response: %v", resp)
 	//response is idx0, error idx1
 	robj := resp[0].Interface()
-	log.Printf("sending back %v\n", robj)
+	//log.Printf("sending back %v\n", robj)
 	ierr := resp[1].Interface()
 
 	if ierr != nil {

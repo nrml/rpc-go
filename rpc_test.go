@@ -70,6 +70,15 @@ func Test_Server(t *testing.T) {
 		log.Println("ERROR: " + err.Error())
 	}
 
-	log.Printf("list of reges: %v\n", regs)
+	log.Printf("list of reges: %v\n\n\n\n\n\n", regs)
+
+	results := new([]Registration)
+	err = client.Call("Search", "email='dummy9001'", results)
+
+	if err != nil {
+		log.Println("ERROR: " + err.Error())
+	}
+
+	log.Printf("results of search: %v\n", results)
 
 }
