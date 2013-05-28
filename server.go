@@ -19,13 +19,13 @@ func NewServer(name string, svc interface{}, port int64) (server, error) {
 	if err != nil {
 		log.Fatal("must provide a service name")
 	}
-	err = svr.init(&wrap, port)
+	err = svr.init(wrap, port)
 	return svr, err
 }
 
-func (svr *server) init(svc *service, port int64) error {
+func (svr *server) init(svc service, port int64) error {
 	endpoint := fmt.Sprintf("%sRpc", svc.Name)
-	rpc.RegisterName(endpoint, svc)
+	rpc.RegisterName(endpoint, &svc)
 	return svr.listen(port)
 }
 func (svr *server) listen(port int64) error {

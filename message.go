@@ -1,7 +1,7 @@
 package rpc
 
 type Message struct {
-	Key    string
+	Key       string
 	Namespace string
 	Method    string
 	Args      []interface{}

@@ -2,16 +2,18 @@ package rpc
 
 import (
 	"errors"
+	"fmt"
 	"github.com/nrml/convert-go"
 	"log"
 	"reflect"
 )
 
 type service struct {
-	Name      string
-	Object    interface{}
-	Key       string
-	Namespace string
+	Name   string
+	object interface{}
+	//key        string
+	//namespace  string
+	servicemap map[string]interface{}
 }
 
 func NewService(name string, local interface{}) (service, error) {
@@ -19,13 +21,13 @@ func NewService(name string, local interface{}) (service, error) {
 	if name == "" {
 		err = errors.New("requires a service name")
 	}
-	svc := service{name, local, "", ""}
+	svcmap := make(map[string]interface{})
+	//svc := service{name, local, "", "", svcmap}
+	svc := service{name, local, svcmap}
 	return svc, err
 }
 
 func (svc *service) Call(msg Message, reply *interface{}) error {
-	//log.Println("made it into call")
-
 	if msg.Key == "" || msg.Namespace == "" {
 		return errors.New("must have key and namespace.")
 	}
@@ -36,74 +38,73 @@ func (svc *service) Call(msg Message, reply *interface{}) error {
 		return err
 	}
 
-	//log.Println("about to relect on svc.Object")
+	var ro reflect.Value
 
-	ro := reflect.ValueOf(svc.Object)
+	//find existing service in map
+	chk := fmt.Sprintf("%s.%s", msg.Key, msg.Namespace)
+	exst, ok := svc.servicemap[chk]
 
-	//log.Println("about to reflect on key")
-	sf := ro.Elem().FieldByName("Key")
-	if sf.CanSet() {
-		sf.SetString(msg.Key)
-	}
-	//log.Println("about to reflect on namespace")
-	nsf := ro.Elem().FieldByName("Namespace")
-	if nsf.CanSet() {
-		nsf.SetString(msg.Namespace)
+	if !ok {
+		ot := reflect.ValueOf(svc.object).Elem().Type()
+		exst = reflect.New(ot).Interface()
+		//add service to map
+		svc.servicemap[chk] = exst
 	}
 
-	//initialize service
-	minit := ro.MethodByName("Init")
-	sandn := reflect.ValueOf(msg.Key + "." + msg.Namespace)
-	minit.Call([]reflect.Value{sandn})
+	ro = reflect.ValueOf(exst)
 
-	//log.Println("about to try and get method")
 	m := ro.MethodByName(msg.Method)
-	mtype := m.Type()
-	//log.Printf("about to to call the function(%v) with original args: %v\n", msg.Method, msg.Args)
 
-	args := make([]reflect.Value, len(msg.Args))
+	if !m.IsValid() {
+		err = errors.New("unknown service method")
+		return err
+	}
+
+	mtype := m.Type()
+
+	l := len(msg.Args)
+	li := mtype.NumIn()
+
+	if l != li {
+		err = errors.New(fmt.Sprintf("arg number mismatch: send %d, need %d\n", l, li))
+	}
+
+	args := make([]reflect.Value, l)
 
 	//TODO: there should be a better way to do this
 	for i := 0; i < len(msg.Args); i++ {
 		arg := msg.Args[i]
-		argtype := mtype.In(i)
-		//log.Printf("type: %v", argtype)
-		cp := reflect.New(argtype)
+		desttype := mtype.In(i)
+
+		cp := reflect.New(desttype)
 		k := reflect.ValueOf(arg).Kind().String()
-		//log.Printf("kind: %v\n", k)
+
 		switch k {
 		case "map":
-			log.Println("convert map")
 			mp := arg.(map[interface{}]interface{})
 			convert.ConvertMap(mp, cp.Interface())
 		case "struct":
-			log.Println("convert struct")
 			convert.Convert(arg, cp.Interface())
 		default:
-			if reflect.TypeOf(arg).ConvertibleTo(argtype) {
-				log.Println("convert default: %v=%v", cp, arg)
-				resp := reflect.ValueOf(arg).Convert(argtype)
+			if reflect.TypeOf(arg).ConvertibleTo(desttype) {
+				resp := reflect.ValueOf(arg).Convert(desttype)
 				cp.Elem().Set(resp)
+			} else {
+				log.Printf("cannot convert %v to function argument type %v\n", arg, desttype)
 			}
 		}
 
 		args[i] = cp.Elem()
 	}
 
-	//log.Printf("about to to call the function(%v) with converted args: %v\n", msg.Method, len(args))
 	resp := m.Call(args)
 
-	//log.Printf("made call, got response: %v", resp)
-	//response is idx0, error idx1
 	robj := resp[0].Interface()
-	//log.Printf("sending back %v\n", robj)
 	ierr := resp[1].Interface()
 
 	if ierr != nil {
 		err = ierr.(error)
 	}
-
-	//log.Printf("first response obj: %v\n", robj)
 
 	*reply = robj
 

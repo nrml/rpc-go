@@ -13,6 +13,11 @@ type Registration struct {
 	Password string
 }
 
+type Status struct {
+	Namespace string
+	Status    int8
+}
+
 var (
 	address = "127.0.0.1"
 	port    = 9001
@@ -26,13 +31,25 @@ func Test_Server(t *testing.T) {
 
 	if err != nil {
 		log.Fatal("dialing:", err)
+		return
 	}
+
+	reg := new(Registration)
+	//synchronous call
+	err = client.Call("BadFunc", reg)
+
+	if err != nil {
+		log.Println("good that service return error with bad func", err.Error())
+	}
+
+	//client conn shuts down, reconnect
+
+	err = client.Connect(address, int64(port))
 
 	send := Registration{0, "dummy9001", "dummyPass"}
 
-	reg := new(Registration)
+	reg = new(Registration)
 
-	// Synchronous call
 	async := client.Async("Create", send, reg)
 
 	cb := <-async.Done
@@ -78,7 +95,7 @@ func Test_Server(t *testing.T) {
 		log.Println("ERROR: " + cb.Error.Error())
 	}
 
-	log.Printf("list of reges: %v\n\n\n\n\n\n", list)
+	log.Printf("list of reges: %v\n", list)
 
 	list = new([]Registration)
 	async = client.Async("Search", "email='dummy9001'", list)
