@@ -3,8 +3,9 @@ package rpc
 import (
 	"errors"
 	"fmt"
-	"github.com/ugorji/go-msgpack"
-	"log"
+	//"github.com/ugorji/go-msgpack"
+	"github.com/ugorji/go/codec"
+	//"log"
 	"net"
 	"net/rpc"
 )
@@ -34,7 +35,16 @@ func NewClient(key string, namespace string, svcname string) (client, error) {
 	c.service = svcname
 	c.key = key
 	c.namespace = namespace
+	c.config()
 	return c, err
+}
+
+func (c *client) config() {
+	mh.MapType = mapStrIntfTyp
+
+	// configure extensions for msgpack, to enable Binary and Time support for tags 0 and 1
+	mh.AddExt(sliceByteTyp, 0, mh.BinaryEncodeExt, mh.BinaryDecodeExt)
+	mh.AddExt(timeTyp, 1, mh.TimeEncodeExt, mh.TimeDecodeExt)
 }
 
 func (c *client) Connect(host string, port int64) error {
@@ -44,8 +54,9 @@ func (c *client) Connect(host string, port int64) error {
 		return err
 	}
 
-	log.Println("using custom codec for client")
-	rpcCodec := msgpack.NewCustomRPCClientCodec(conn, nil)
+	//log.Println("using custom codec for client")
+	//rpcCodec := msgpack.NewCustomRPCClientCodec(conn, nil)
+	rpcCodec := codec.MsgpackSpecRpc.ClientCodec(conn, h)
 	client := rpc.NewClientWithCodec(rpcCodec)
 	c.rpc = client
 
@@ -59,7 +70,17 @@ func (c *client) Connect(host string, port int64) error {
 //last agrument is the reply that is a zeroed T value pointer (new), all others sent with the request
 func (c *client) Call(method string, args ...interface{}) error {
 	ca := c.build(method, args...)
-	return c.rpc.Call(ca.endpoint, ca.msg, ca.reply)
+	c.rpc.Call(ca.endpoint, ca.msg, ca.reply)
+	//cr := make(chan interface{})
+	//go c.doCall(ca, cr)
+	//ca.reply = <-cr
+	return nil
+}
+func (c *client) doCall(args callargs, ch chan interface{}) {
+
+	c.rpc.Call(args.endpoint, args.msg, args.reply)
+	ch <- args.reply
+
 }
 
 func (c *client) Async(method string, args ...interface{}) *rpc.Call {

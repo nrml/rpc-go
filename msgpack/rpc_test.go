@@ -5,6 +5,7 @@ import (
 	"log"
 	//"net/rpc"
 	"testing"
+	"time"
 )
 
 type Registration struct {
@@ -20,20 +21,55 @@ type Status struct {
 
 var (
 	address = "127.0.0.1"
-	port    = 9001
-	remote  = fmt.Sprintf("%s:%d", address, port)
+	//port    = 20000
+	port   = 9002
+	remote = fmt.Sprintf("%s:%d", address, port)
 )
 
+func NoTest_MulitpleConns(t *testing.T) {
+	log.Println("testing multiple connections")
+	clt, _ := NewClient(fmt.Sprintf("testkey%d", 1), fmt.Sprintf("namespace%d", 1), "Membership")
+	clt.Connect(address, int64(port))
+
+	clt2, _ := NewClient(fmt.Sprintf("testkey%d", 2), fmt.Sprintf("namespace%d", 1), "Membership")
+	clt2.Connect(address, int64(port))
+
+	clt3, _ := NewClient(fmt.Sprintf("testkey%d", 3), fmt.Sprintf("namespace%d", 1), "Membership")
+	clt3.Connect(address, int64(port))
+
+	for i := 1; i < 200; i++ {
+		go func(idx int) {
+			st := new(status)
+			clt.Call("Init", clt.key, clt.namespace, st)
+		}(i)
+		go func(idx int) {
+			st := new(status)
+			clt2.Call("Init", clt2.key, clt.namespace, st)
+		}(i)
+		go func(idx int) {
+			st := new(status)
+			clt3.Call("Init", clt3.key, clt.namespace, st)
+		}(i)
+	}
+	log.Println("sleeping")
+	time.Sleep(10 * time.Second)
+	log.Println("done")
+}
+
 func Test_Server(t *testing.T) {
-
+	log.Println("begin server test")
 	client, err := NewClient("testsecret", "testnamespace", "Membership")
-	err = client.Connect(address, int64(port))
 
+	err = client.Connect(address, int64(port))
+	log.Println("checking for dial error")
 	if err != nil {
+		log.Println("killing server test after dial failure")
 		log.Fatal("dialing:", err)
 		return
+	} else {
+		log.Println("no connect error found")
 	}
-
+	//return
 	reg := new(Registration)
 	//synchronous call
 	err = client.Call("BadFunc", reg)

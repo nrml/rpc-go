@@ -6,28 +6,30 @@ import (
 	"github.com/nrml/convert-go"
 	"log"
 	"reflect"
+	"time"
 )
 
 type service struct {
-	Name   string
-	object interface{}
-	//key        string
-	//namespace  string
+	Name       string
+	object     interface{}
 	servicemap map[string]interface{}
+	timeoutmap map[string]*time.Timer
 }
 
 func NewService(name string, local interface{}) (service, error) {
+	log.Println("new service")
 	var err error
 	if name == "" {
 		err = errors.New("requires a service name")
 	}
 	svcmap := make(map[string]interface{})
-	//svc := service{name, local, "", "", svcmap}
-	svc := service{name, local, svcmap}
+	tomap := make(map[string]*time.Timer)
+	svc := service{name, local, svcmap, tomap}
 	return svc, err
 }
 
 func (svc *service) Call(msg Message, reply *interface{}) error {
+	//log.Println("call")
 	if msg.Key == "" || msg.Namespace == "" {
 		return errors.New("must have key and namespace.")
 	}
@@ -81,7 +83,7 @@ func (svc *service) Call(msg Message, reply *interface{}) error {
 
 		switch k {
 		case "map":
-			mp := arg.(map[interface{}]interface{})
+			mp := arg.(map[string]interface{})
 			convert.ConvertMap(mp, cp.Interface())
 		case "struct":
 			convert.Convert(arg, cp.Interface())
@@ -108,6 +110,23 @@ func (svc *service) Call(msg Message, reply *interface{}) error {
 
 	*reply = robj
 
-	return err
+	timer, ok := svc.timeoutmap[chk]
+	if ok {
+		log.Println("resetting timer")
+		timer.Reset(100 * time.Millisecond)
+	} else {
+		log.Println("new timer")
+		timer = time.NewTimer(100 * time.Millisecond)
+		svc.timeoutmap[chk] = timer
+	}
 
+	go svc.remove(timer, chk)
+
+	return err
+}
+func (svc *service) remove(t *time.Timer, ns string) {
+	_ = <-t.C
+	t.Stop()
+	log.Println("deleting service")
+	delete(svc.timeoutmap, ns)
 }
