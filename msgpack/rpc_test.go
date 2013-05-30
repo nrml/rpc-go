@@ -21,8 +21,8 @@ type Status struct {
 
 var (
 	address = "127.0.0.1"
-	//port    = 20000
-	port   = 9002
+	port    = 20000
+	//port   = 9002
 	remote = fmt.Sprintf("%s:%d", address, port)
 )
 
